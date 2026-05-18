@@ -1,0 +1,10 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "user_online": {
+        "default": "mdi:account-network",
+        "state": {"off": "mdi:account-off"}
+      }
+    }
+  }
+}
