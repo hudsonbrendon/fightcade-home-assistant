@@ -24,10 +24,10 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator = entry.runtime_data
-    entities: list[BinarySensorEntity] = [
-        FightcadeOnlineBinarySensor(coordinator, entry.data["username"])
-    ]
-    # friend sensors added in Task 10
+    username: str = entry.data["username"]
+    entities: list[BinarySensorEntity] = [FightcadeOnlineBinarySensor(coordinator, username)]
+    for friend in coordinator.data.friends:
+        entities.append(FightcadeFriendOnlineBinarySensor(coordinator, username, friend))
     async_add_entities(entities)
 
 
@@ -58,4 +58,40 @@ class FightcadeOnlineBinarySensor(
         if (lo := user.get("last_online")) is not None:
             attrs["last_online"] = lo
             attrs["last_online_iso"] = epoch_ms_to_iso(lo)
+        return attrs
+
+
+class FightcadeFriendOnlineBinarySensor(
+    CoordinatorEntity[FightcadeDataUpdateCoordinator], BinarySensorEntity
+):
+    _attr_has_entity_name = True
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+
+    def __init__(
+        self,
+        coordinator: FightcadeDataUpdateCoordinator,
+        username: str,
+        friend: str,
+    ) -> None:
+        super().__init__(coordinator)
+        self._friend = friend
+        self._attr_unique_id = f"{username}_friend_{friend}_online"
+        self._attr_name = f"Friend {friend} online"
+        self._attr_device_info = build_device_info(username)
+        self.entity_id = f"binary_sensor.fightcade_friend_{friend}_online"
+
+    @property
+    def is_on(self) -> bool:
+        info = self.coordinator.data.friends.get(self._friend)
+        return bool(info and info["online"])
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        info = self.coordinator.data.friends.get(self._friend) or {}
+        attrs: dict[str, Any] = {"username": self._friend}
+        if info.get("error"):
+            attrs["error"] = info["error"]
+        user = info.get("user") or {}
+        if (lo := user.get("last_online")) is not None:
+            attrs["last_online"] = lo
         return attrs
