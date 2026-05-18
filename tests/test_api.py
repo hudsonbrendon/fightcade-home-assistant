@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import aiohttp
 import pytest
@@ -20,7 +21,7 @@ from custom_components.fightcade.const import API_URL
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
-def load_fixture(name: str) -> dict:
+def load_fixture(name: str) -> dict[str, Any]:
     return json.loads((FIXTURES / name).read_text())
 
 
@@ -93,4 +94,11 @@ async def test_network_error_raises_api_error(session: ClientSession) -> None:
     with aioresponses() as m:
         m.post(API_URL, exception=aiohttp.ClientError("conn refused"))
         with pytest.raises(FightcadeApiError):
+            await FightcadeClient(session).async_get_user("biggs")
+
+
+async def test_timeout_raises_api_error(session: ClientSession) -> None:
+    with aioresponses() as m:
+        m.post(API_URL, exception=TimeoutError())
+        with pytest.raises(FightcadeApiError, match="timeout"):
             await FightcadeClient(session).async_get_user("biggs")

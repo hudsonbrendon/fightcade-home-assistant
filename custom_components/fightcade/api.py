@@ -43,30 +43,44 @@ class FightcadeClient:
                     raise FightcadeApiError(f"http {resp.status}")
                 data: dict[str, Any] = await resp.json()
         except aiohttp.ClientError as err:
+            _LOGGER.debug("Fightcade API client error for req=%r: %s", body.get("req"), err)
             raise FightcadeApiError(str(err)) from err
         except TimeoutError as err:
+            _LOGGER.debug("Fightcade API timeout for req=%r", body.get("req"))
             raise FightcadeApiError("timeout") from err
 
         res = data.get("res")
         if res != "OK":
-            if isinstance(res, str) and "not found" in res.lower():
-                raise FightcadeUserNotFound(res)
             raise FightcadeApiError(f"api res: {res!r}")
         return data
 
     async def async_get_user(self, username: str) -> dict[str, Any]:
         """Fetch a user's profile and gameinfo."""
-        data = await self._request({"req": "getuser", "username": username})
-        return data["user"]
+        try:
+            data = await self._request({"req": "getuser", "username": username})
+        except FightcadeApiError as err:
+            if "not found" in str(err).lower():
+                raise FightcadeUserNotFound(str(err)) from err
+            raise
+        user = data.get("user")
+        if user is None:
+            raise FightcadeApiError("missing 'user' key in response")
+        return user
 
     async def async_get_user_replays(
         self, username: str, *, limit: int = 5
     ) -> list[dict[str, Any]]:
         """Fetch the user's most recent replays (newest first)."""
         data = await self._request({"req": "searchquarks", "username": username, "limit": limit})
-        return list(data["results"]["results"])
+        results = (data.get("results") or {}).get("results")
+        if results is None:
+            raise FightcadeApiError("missing 'results' key in response")
+        return list(results)
 
     async def async_get_events(self, gameid: str, *, limit: int = 15) -> list[dict[str, Any]]:
         """Fetch active events for a game (newest first)."""
         data = await self._request({"req": "searchevents", "gameid": gameid, "limit": limit})
-        return list(data["results"]["results"])
+        results = (data.get("results") or {}).get("results")
+        if results is None:
+            raise FightcadeApiError("missing 'results' key in response")
+        return list(results)
