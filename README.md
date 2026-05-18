@@ -28,7 +28,7 @@ Optional, via Configure on the integration card:
 | `sensor.fightcade_<user>_<gameid>_rank` | sensor | One per game in your `gameinfo`. State is the rank letter. |
 | `sensor.fightcade_<user>_<gameid>_matches` | sensor | Ranked match count. |
 | `sensor.fightcade_<user>_<gameid>_time_played` | sensor | Hours played. |
-| `sensor.fightcade_events_<gameid>` | sensor | Count of upcoming events for your top-3 most-played games. |
+| `sensor.fightcade_<user>_events_<gameid>` | sensor | Count of upcoming events for your top-3 most-played games. |
 
 ## Events
 
