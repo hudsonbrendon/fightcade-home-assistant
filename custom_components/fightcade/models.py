@@ -5,6 +5,7 @@ Kept free of Home Assistant imports so they are trivially unit-testable.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 from .const import REPLAY_URL_TEMPLATE
@@ -68,3 +69,8 @@ def extract_last_match(username: str, replays: list[dict[str, Any]]) -> dict[str
         "won": won,
         "replay_url": build_replay_url(replay),
     }
+
+
+def epoch_ms_to_iso(ms: int) -> str:
+    """Convert millisecond Unix epoch to ISO 8601 UTC string."""
+    return datetime.fromtimestamp(ms / 1000, tz=UTC).isoformat()

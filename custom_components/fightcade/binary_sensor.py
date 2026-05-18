@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import Any
 
 from homeassistant.components.binary_sensor import (
@@ -16,6 +15,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from . import FightcadeConfigEntry
 from .coordinator import FightcadeDataUpdateCoordinator
 from .entity import build_device_info
+from .models import epoch_ms_to_iso
 
 
 async def async_setup_entry(
@@ -54,12 +54,8 @@ class FightcadeOnlineBinarySensor(
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         user = self.coordinator.data.user
-        attrs: dict[str, Any] = {"account_created": _epoch_ms_to_iso(user["date"])}
+        attrs: dict[str, Any] = {"account_created": epoch_ms_to_iso(user["date"])}
         if (lo := user.get("last_online")) is not None:
             attrs["last_online"] = lo
-            attrs["last_online_iso"] = _epoch_ms_to_iso(lo)
+            attrs["last_online_iso"] = epoch_ms_to_iso(lo)
         return attrs
-
-
-def _epoch_ms_to_iso(ms: int) -> str:
-    return datetime.fromtimestamp(ms / 1000, tz=UTC).isoformat()

@@ -8,6 +8,7 @@ from typing import Any
 
 from custom_components.fightcade.models import (
     build_replay_url,
+    epoch_ms_to_iso,
     extract_favorite_gameids,
     extract_last_match,
     is_online,
@@ -69,3 +70,8 @@ def test_extract_last_match_none_when_no_replays() -> None:
 def test_build_replay_url() -> None:
     url = build_replay_url({"emulator": "fbneo", "gameid": "umk3", "quarkid": "x-1"})
     assert url == "https://replay.fightcade.com/fbneo/umk3/x-1"
+
+
+def test_epoch_ms_to_iso_returns_utc_isoformat() -> None:
+    assert epoch_ms_to_iso(0) == "1970-01-01T00:00:00+00:00"
+    assert epoch_ms_to_iso(1716100000000).startswith("2024-")
