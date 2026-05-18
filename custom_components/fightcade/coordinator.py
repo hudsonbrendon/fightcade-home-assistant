@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Any
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -53,10 +54,12 @@ class FightcadeDataUpdateCoordinator(DataUpdateCoordinator[FightcadeData]):
         friends: list[str],
         poll_interval: int,
         entry_id: str,
+        config_entry: ConfigEntry | None = None,
     ) -> None:
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=config_entry,
             name=f"{DOMAIN}.{username}",
             update_interval=timedelta(seconds=poll_interval),
         )

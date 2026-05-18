@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from homeassistant.core import HomeAssistant
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fightcade.coordinator import (
     FightcadeData,
@@ -35,8 +36,10 @@ async def test_first_refresh_seeds_seen_events_without_firing(
     hass: HomeAssistant, fake_client: AsyncMock
 ) -> None:
     fired: list[Any] = []
-    hass.bus.async_listen("fightcade_event", lambda ev: fired.append(ev))
+    hass.bus.async_listen("fightcade_event", fired.append)
 
+    entry = MockConfigEntry(domain="fightcade", data={"username": "biggs"}, entry_id="abc")
+    entry.add_to_hass(hass)
     coord = FightcadeDataUpdateCoordinator(
         hass,
         client=fake_client,
@@ -44,8 +47,9 @@ async def test_first_refresh_seeds_seen_events_without_firing(
         friends=[],
         poll_interval=60,
         entry_id="abc",
+        config_entry=entry,
     )
-    await coord.async_config_entry_first_refresh()
+    await coord.async_refresh()
 
     assert isinstance(coord.data, FightcadeData)
     assert coord.data.user["name"] == "biggs"
@@ -59,6 +63,8 @@ async def test_first_refresh_seeds_seen_events_without_firing(
 async def test_second_refresh_fires_event_for_new_tournament(
     hass: HomeAssistant, fake_client: AsyncMock
 ) -> None:
+    entry = MockConfigEntry(domain="fightcade", data={"username": "biggs"}, entry_id="abc")
+    entry.add_to_hass(hass)
     coord = FightcadeDataUpdateCoordinator(
         hass,
         client=fake_client,
@@ -66,8 +72,9 @@ async def test_second_refresh_fires_event_for_new_tournament(
         friends=[],
         poll_interval=60,
         entry_id="abc",
+        config_entry=entry,
     )
-    await coord.async_config_entry_first_refresh()
+    await coord.async_refresh()
 
     base_events = load("events_garou.json")["results"]["results"]
     new_event = {
@@ -85,7 +92,7 @@ async def test_second_refresh_fires_event_for_new_tournament(
     fake_client.async_get_events.side_effect = side
 
     fired: list[Any] = []
-    hass.bus.async_listen("fightcade_event", lambda ev: fired.append(ev))
+    hass.bus.async_listen("fightcade_event", fired.append)
     await coord.async_refresh()
     await hass.async_block_till_done()
 
@@ -105,6 +112,8 @@ async def test_friend_transition_fires_event(hass: HomeAssistant, fake_client: A
 
     fake_client.async_get_user.side_effect = get_user
 
+    entry = MockConfigEntry(domain="fightcade", data={"username": "biggs"}, entry_id="abc")
+    entry.add_to_hass(hass)
     coord = FightcadeDataUpdateCoordinator(
         hass,
         client=fake_client,
@@ -112,8 +121,9 @@ async def test_friend_transition_fires_event(hass: HomeAssistant, fake_client: A
         friends=["rival"],
         poll_interval=60,
         entry_id="abc",
+        config_entry=entry,
     )
-    await coord.async_config_entry_first_refresh()
+    await coord.async_refresh()
     assert coord.data.friends["rival"]["online"] is False
 
     async def get_user_now(name: str):
@@ -121,7 +131,7 @@ async def test_friend_transition_fires_event(hass: HomeAssistant, fake_client: A
 
     fake_client.async_get_user.side_effect = get_user_now
     fired: list[Any] = []
-    hass.bus.async_listen("fightcade_friend_online", lambda ev: fired.append(ev))
+    hass.bus.async_listen("fightcade_friend_online", fired.append)
     await coord.async_refresh()
     await hass.async_block_till_done()
 
