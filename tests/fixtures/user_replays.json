@@ -1,0 +1,36 @@
+{
+  "res": "OK",
+  "results": {
+    "count": 2,
+    "results": [
+      {
+        "quarkid": "1700000000000-1234",
+        "channelname": "Killer Instinct",
+        "date": 1716000000000,
+        "duration": 480,
+        "emulator": "fbneo",
+        "gameid": "umk3",
+        "num_matches": 5,
+        "ranked": 5,
+        "replay_file": "abc.fs",
+        "players": [
+          {"name": "biggs", "country": "BR", "rank": 5, "score": 5},
+          {"name": "rival", "country": "US", "rank": 5, "score": 3}
+        ]
+      },
+      {
+        "quarkid": "1699000000000-5678",
+        "channelname": "Garou",
+        "date": 1715000000000,
+        "duration": 600,
+        "emulator": "fbneo",
+        "gameid": "garou",
+        "ranked": null,
+        "players": [
+          {"name": "rival", "country": "US"},
+          {"name": "biggs", "country": "BR"}
+        ]
+      }
+    ]
+  }
+}

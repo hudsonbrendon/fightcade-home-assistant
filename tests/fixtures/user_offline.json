@@ -1,0 +1,12 @@
+{
+  "res": "OK",
+  "user": {
+    "name": "biggs",
+    "ranked": true,
+    "date": 1500000000000,
+    "last_online": 1716100000000,
+    "gameinfo": {
+      "umk3": {"rank": 5, "num_matches": 120, "last_match": 1716000000000, "time_played": 360000000}
+    }
+  }
+}

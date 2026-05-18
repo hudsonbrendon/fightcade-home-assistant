@@ -1,0 +1,14 @@
+{
+  "res": "OK",
+  "user": {
+    "name": "biggs",
+    "gravatar": "https://gravatar.com/avatar/abc",
+    "ranked": true,
+    "date": 1500000000000,
+    "gameinfo": {
+      "umk3": {"rank": 5, "num_matches": 120, "last_match": 1716000000000, "time_played": 360000000},
+      "garou": {"rank": 4, "num_matches": 80, "last_match": 1715000000000, "time_played": 240000000},
+      "sfiii3nr1": {"rank": 3, "num_matches": 40, "last_match": 1714000000000, "time_played": 90000000}
+    }
+  }
+}

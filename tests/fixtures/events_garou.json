@@ -1,0 +1,25 @@
+{
+  "res": "OK",
+  "results": {
+    "count": 2,
+    "results": [
+      {
+        "name": "Weekly Garou",
+        "author": "fightnight",
+        "date": 1720000000000,
+        "gameid": "garou",
+        "link": "https://challonge.com/example",
+        "region": "Global",
+        "stream": "https://twitch.tv/example"
+      },
+      {
+        "name": "Garou Monthly",
+        "author": "monthly",
+        "date": 1722000000000,
+        "gameid": "garou",
+        "link": "https://challonge.com/monthly",
+        "region": "NA"
+      }
+    ]
+  }
+}
