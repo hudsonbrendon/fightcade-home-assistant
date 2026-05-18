@@ -50,35 +50,45 @@ class _BaseFightcadeSensor(CoordinatorEntity[FightcadeDataUpdateCoordinator], Se
         self._attr_device_info = build_device_info(username)
 
 
-class FightcadeRankSensor(_BaseFightcadeSensor):
+class _BaseFightcadePerGameSensor(_BaseFightcadeSensor):
+    """Shared base for sensors tied to one game id."""
+
     def __init__(
         self, coordinator: FightcadeDataUpdateCoordinator, username: str, gameid: str
     ) -> None:
         super().__init__(coordinator, username)
         self._gameid = gameid
+
+    @property
+    def _gameinfo(self) -> dict[str, Any]:
+        return (self.coordinator.data.user.get("gameinfo") or {}).get(self._gameid, {})
+
+
+class FightcadeRankSensor(_BaseFightcadePerGameSensor):
+    def __init__(
+        self, coordinator: FightcadeDataUpdateCoordinator, username: str, gameid: str
+    ) -> None:
+        super().__init__(coordinator, username, gameid)
         self._attr_unique_id = f"{username}_{gameid}_rank"
         self._attr_name = f"{gameid} rank"
         self._attr_icon = "mdi:trophy"
 
     @property
     def native_value(self) -> str:
-        info = (self.coordinator.data.user.get("gameinfo") or {}).get(self._gameid, {})
-        return RANK_MAP.get(info.get("rank") or 0, "Unranked")
+        return RANK_MAP.get(self._gameinfo.get("rank") or 0, "Unranked")
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        info = (self.coordinator.data.user.get("gameinfo") or {}).get(self._gameid, {})
-        return {"rank_index": info.get("rank") or 0}
+        return {"rank_index": self._gameinfo.get("rank") or 0}
 
 
-class FightcadeMatchesSensor(_BaseFightcadeSensor):
+class FightcadeMatchesSensor(_BaseFightcadePerGameSensor):
     _attr_state_class = SensorStateClass.TOTAL_INCREASING
 
     def __init__(
         self, coordinator: FightcadeDataUpdateCoordinator, username: str, gameid: str
     ) -> None:
-        super().__init__(coordinator, username)
-        self._gameid = gameid
+        super().__init__(coordinator, username, gameid)
         self._attr_unique_id = f"{username}_{gameid}_matches"
         self._attr_name = f"{gameid} matches"
         self._attr_icon = "mdi:counter"
@@ -86,11 +96,10 @@ class FightcadeMatchesSensor(_BaseFightcadeSensor):
 
     @property
     def native_value(self) -> int:
-        info = (self.coordinator.data.user.get("gameinfo") or {}).get(self._gameid, {})
-        return int(info.get("num_matches") or 0)
+        return int(self._gameinfo.get("num_matches") or 0)
 
 
-class FightcadeTimePlayedSensor(_BaseFightcadeSensor):
+class FightcadeTimePlayedSensor(_BaseFightcadePerGameSensor):
     _attr_state_class = SensorStateClass.TOTAL_INCREASING
     _attr_device_class = SensorDeviceClass.DURATION
     _attr_native_unit_of_measurement = UnitOfTime.HOURS
@@ -99,17 +108,15 @@ class FightcadeTimePlayedSensor(_BaseFightcadeSensor):
     def __init__(
         self, coordinator: FightcadeDataUpdateCoordinator, username: str, gameid: str
     ) -> None:
-        super().__init__(coordinator, username)
-        self._gameid = gameid
+        super().__init__(coordinator, username, gameid)
         self._attr_unique_id = f"{username}_{gameid}_time_played"
         self._attr_name = f"{gameid} time played"
         self._attr_icon = "mdi:clock-outline"
 
     @property
     def native_value(self) -> float:
-        info = (self.coordinator.data.user.get("gameinfo") or {}).get(self._gameid, {})
-        ms = int(info.get("time_played") or 0)
-        return round(ms / 3_600_000, 2)
+        ms = int(self._gameinfo.get("time_played") or 0)
+        return round(ms / 3_600_000, 1)
 
 
 class FightcadeLastMatchSensor(_BaseFightcadeSensor):
