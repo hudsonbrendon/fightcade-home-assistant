@@ -37,7 +37,9 @@ async def async_setup_entry(
         entities.append(FightcadeMatchesSensor(coordinator, username, gameid))
         entities.append(FightcadeTimePlayedSensor(coordinator, username, gameid))
 
-    # events sensors added in Task 8
+    for gameid in coordinator.data.events:
+        entities.append(FightcadeEventsSensor(coordinator, username, gameid))
+
     async_add_entities(entities)
 
 
@@ -153,3 +155,30 @@ class FightcadeLastMatchSensor(_BaseFightcadeSensor):
             "replay_url": match["replay_url"],
             "quarkid": match["quarkid"],
         }
+
+
+class FightcadeEventsSensor(_BaseFightcadeSensor):
+    _attr_icon = "mdi:tournament"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(
+        self, coordinator: FightcadeDataUpdateCoordinator, username: str, gameid: str
+    ) -> None:
+        super().__init__(coordinator, username)
+        self._gameid = gameid
+        self._attr_unique_id = f"{username}_events_{gameid}"
+        self._attr_name = f"events {gameid}"
+        self._attr_native_unit_of_measurement = "events"
+
+    @property
+    def native_value(self) -> int:
+        return len(self.coordinator.data.events.get(self._gameid, []))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        events = self.coordinator.data.events.get(self._gameid, [])
+        upcoming = sorted(events, key=lambda e: e.get("date", 0))
+        attrs: dict[str, Any] = {"events": upcoming}
+        if upcoming:
+            attrs["next_event"] = upcoming[0]
+        return attrs

@@ -72,3 +72,18 @@ async def test_last_match_sensor_state_is_timestamp(
     assert s.attributes["gameid"] == "umk3"
     assert s.attributes["won"] is True
     assert s.attributes["replay_url"].endswith("/umk3/1700000000000-1234")
+
+
+async def test_events_sensor_per_favorite_game(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    await _setup(hass, mock_config_entry)
+    # umk3 is the most-played game in user_online.json. The events fixture is
+    # the same for every gameid in this test (mock returns the same payload),
+    # so each favorite gets an events sensor with the 2-event payload.
+    s = hass.states.get("sensor.fightcade_biggs_events_umk3")
+    assert s is not None
+    assert s.state == "2"
+    next_event = s.attributes["next_event"]
+    assert next_event["name"] == "Weekly Garou"
+    assert next_event["link"].startswith("https://challonge.com/")
