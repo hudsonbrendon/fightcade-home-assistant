@@ -1,0 +1,6 @@
+{
+  "name": "Fightcade",
+  "render_readme": true,
+  "homeassistant": "2026.4.0",
+  "country": ["BR", "US"]
+}
