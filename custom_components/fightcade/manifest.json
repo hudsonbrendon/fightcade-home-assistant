@@ -1,0 +1,13 @@
+{
+  "domain": "fightcade",
+  "name": "Fightcade",
+  "codeowners": ["@hudsonbrendon"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/hudsonbrendon/fightcade-home-assistant",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/hudsonbrendon/fightcade-home-assistant/issues",
+  "requirements": [],
+  "version": "0.1.0",
+  "integration_type": "service"
+}
