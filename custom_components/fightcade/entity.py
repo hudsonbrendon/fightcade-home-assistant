@@ -1,4 +1,5 @@
 """Shared entity helpers for the Fightcade integration."""
+
 from __future__ import annotations
 
 from homeassistant.helpers.device_registry import DeviceEntryType

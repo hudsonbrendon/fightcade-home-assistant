@@ -1,4 +1,5 @@
 """Common fixtures for fightcade tests."""
+
 from __future__ import annotations
 
 import pytest
@@ -28,4 +29,4 @@ def mock_config_entry() -> MockConfigEntry:
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(enable_custom_integrations):
     """Enable loading custom_components in every test."""
-    yield
+    return enable_custom_integrations

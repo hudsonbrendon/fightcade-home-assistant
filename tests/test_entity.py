@@ -1,4 +1,5 @@
 """Tests for the Fightcade entity base."""
+
 from __future__ import annotations
 
 from custom_components.fightcade.const import DOMAIN, MANUFACTURER
