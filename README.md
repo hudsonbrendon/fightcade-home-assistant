@@ -67,3 +67,16 @@ automation:
         target: {entity_id: light.arcade}
         data: {color_name: "magenta"}
 ```
+
+## Adding via HACS (manual repo until accepted)
+
+1. HACS → ⋮ → Custom repositories
+2. URL: `https://github.com/hudsonbrendon/fightcade-home-assistant`
+3. Category: Integration
+4. Install, then restart Home Assistant.
+
+## Troubleshooting
+
+- **`user_not_found` during setup** — usernames are case-sensitive on Fightcade. Try the exact capitalization shown in the in-app profile.
+- **Sensors not updating** — open Settings → Devices & Services → Fightcade → Diagnostics. Check the `friends[*].error` and the integration log under Logs.
+- **Tournament events fire on first refresh** — they shouldn't. If they do, delete `<config>/.storage/fightcade.seen_events.*` and reload the entry.
