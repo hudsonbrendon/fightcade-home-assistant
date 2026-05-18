@@ -1,0 +1,29 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Fightcade",
+        "description": "Informe seu nome de usuário do Fightcade.",
+        "data": {"username": "Nome de usuário"}
+      }
+    },
+    "error": {
+      "user_not_found": "Esse usuário do Fightcade não existe.",
+      "cannot_connect": "Não foi possível conectar ao Fightcade. Tente de novo."
+    },
+    "abort": {
+      "already_configured": "Essa conta Fightcade já está configurada."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opções do Fightcade",
+        "data": {
+          "poll_interval": "Intervalo de polling (segundos)",
+          "friends": "Amigos a monitorar (usernames separados por vírgula)"
+        }
+      }
+    }
+  }
+}
