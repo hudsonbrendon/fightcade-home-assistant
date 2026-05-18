@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.core import HomeAssistant
@@ -138,3 +138,56 @@ async def test_friend_transition_fires_event(hass: HomeAssistant, fake_client: A
     assert len(fired) == 1
     assert fired[0].data["username"] == "rival"
     assert coord.data.friends["rival"]["online"] is True
+
+
+async def test_end_to_end_new_event_fires_after_second_refresh(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    mock_config_entry.add_to_hass(hass)
+    user = load("user_online.json")["user"]
+    replays = load("user_replays.json")["results"]["results"]
+    events_first = load("events_garou.json")["results"]["results"]
+
+    surprise = {
+        "name": "Surprise",
+        "author": "x",
+        "date": 1730000000000,
+        "gameid": "umk3",
+        "link": "https://example.com",
+        "region": "EU",
+    }
+
+    with patch("custom_components.fightcade.FightcadeClient") as ClientCls:
+        c = AsyncMock()
+        c.async_get_user.return_value = user
+        c.async_get_user_replays.return_value = replays
+
+        # First refresh: every favorite gameid gets the base events_first.
+        # Second refresh: only umk3 sees the new Surprise event added; others
+        # see events_first unchanged, so we don't multiply the firing across
+        # favorites.
+        seen_calls = {"n": 0}
+        first_refresh_count = 3  # one call per favorite gameid (limit=3)
+
+        async def get_events(gameid: str):
+            seen_calls["n"] += 1
+            if seen_calls["n"] <= first_refresh_count:
+                return events_first
+            if gameid == "umk3":
+                return [*events_first, surprise]
+            return events_first
+
+        c.async_get_events.side_effect = get_events
+        ClientCls.return_value = c
+
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+        fired: list[Any] = []
+        hass.bus.async_listen("fightcade_event", fired.append)
+
+        coord = mock_config_entry.runtime_data
+        await coord.async_refresh()
+        await hass.async_block_till_done()
+
+    assert [ev.data["name"] for ev in fired] == ["Surprise"]

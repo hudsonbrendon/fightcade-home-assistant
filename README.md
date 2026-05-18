@@ -36,3 +36,34 @@ Optional, via Configure on the integration card:
 |---|---|---|
 | `fightcade_event` | `{gameid, name, date, link, region, stream?}` | A new tournament appears for one of your favorite games. |
 | `fightcade_friend_online` | `{username}` | A configured friend transitions from offline to online. |
+
+## Automation examples
+
+### Notify when a new tournament is announced
+
+```yaml
+automation:
+  - alias: Notify new Fightcade tournament
+    trigger:
+      - platform: event
+        event_type: fightcade_event
+    action:
+      - service: notify.mobile_app_my_phone
+        data:
+          title: "New {{ trigger.event.data.gameid }} tournament"
+          message: "{{ trigger.event.data.name }} — {{ trigger.event.data.link }}"
+```
+
+### Light up the room when a friend comes online
+
+```yaml
+automation:
+  - alias: Friend online → arcade light
+    trigger:
+      - platform: event
+        event_type: fightcade_friend_online
+    action:
+      - service: light.turn_on
+        target: {entity_id: light.arcade}
+        data: {color_name: "magenta"}
+```
