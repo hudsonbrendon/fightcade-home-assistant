@@ -87,3 +87,54 @@ async def test_events_sensor_per_favorite_game(
     next_event = s.attributes["next_event"]
     assert next_event["name"] == "Weekly Garou"
     assert next_event["link"].startswith("https://challonge.com/")
+
+
+async def test_rank_sensor_unranked_when_rank_missing(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    user = load("user_online.json")["user"]
+    user["gameinfo"] = {"umk3": {"num_matches": 0, "time_played": 0}}
+    await _setup(hass, mock_config_entry, async_get_user=user)
+    s = hass.states.get("sensor.fightcade_biggs_umk3_rank")
+    assert s.state == "Unranked"
+    assert s.attributes["rank_index"] == 0
+
+
+async def test_last_match_sensor_none_when_no_replays(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    await _setup(hass, mock_config_entry, async_get_user_replays=[])
+    s = hass.states.get("sensor.fightcade_biggs_last_match")
+    assert s is not None
+    assert s.state in ("unknown", "unavailable")
+
+
+async def test_events_sensor_zero_when_no_events(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    await _setup(hass, mock_config_entry, async_get_events=[])
+    s = hass.states.get("sensor.fightcade_biggs_events_umk3")
+    assert s is not None
+    assert s.state == "0"
+    assert s.attributes["events"] == []
+    assert "next_event" not in s.attributes
+
+
+async def test_time_played_sensor_zero_when_missing(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    user = load("user_online.json")["user"]
+    user["gameinfo"] = {"umk3": {"rank": 0, "num_matches": 0}}
+    await _setup(hass, mock_config_entry, async_get_user=user)
+    s = hass.states.get("sensor.fightcade_biggs_umk3_time_played")
+    assert float(s.state) == 0.0
+
+
+async def test_matches_sensor_zero_when_missing(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    user = load("user_online.json")["user"]
+    user["gameinfo"] = {"umk3": {"rank": 0, "time_played": 0}}
+    await _setup(hass, mock_config_entry, async_get_user=user)
+    s = hass.states.get("sensor.fightcade_biggs_umk3_matches")
+    assert s.state == "0"

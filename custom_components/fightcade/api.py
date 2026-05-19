@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from http import HTTPStatus
 from typing import Any
@@ -41,7 +42,10 @@ class FightcadeClient:
                     raise FightcadeApiError("rate limited")
                 if resp.status >= HTTPStatus.BAD_REQUEST:
                     raise FightcadeApiError(f"http {resp.status}")
-                data: dict[str, Any] = await resp.json()
+                try:
+                    data = await resp.json(content_type=None)
+                except json.JSONDecodeError as err:
+                    raise FightcadeApiError(f"invalid json: {err}") from err
         except aiohttp.ClientError as err:
             _LOGGER.debug("Fightcade API client error for req=%r: %s", body.get("req"), err)
             raise FightcadeApiError(str(err)) from err
@@ -49,8 +53,11 @@ class FightcadeClient:
             _LOGGER.debug("Fightcade API timeout for req=%r", body.get("req"))
             raise FightcadeApiError("timeout") from err
 
+        if not isinstance(data, dict):
+            raise FightcadeApiError(f"unexpected response type: {type(data).__name__}")
+
         res = data.get("res")
-        if res != "OK":
+        if not isinstance(res, str) or res.upper() != "OK":
             raise FightcadeApiError(f"api res: {res!r}")
         return data
 

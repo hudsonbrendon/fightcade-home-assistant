@@ -11,6 +11,7 @@ from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.fightcade.api import FightcadeApiError
 from custom_components.fightcade.const import (
     CONF_FRIENDS,
     CONF_POLL_INTERVAL,
@@ -93,3 +94,37 @@ async def test_friend_binary_sensor_created_per_friend(hass: HomeAssistant) -> N
     assert nemesis is not None
     assert rival.state == STATE_ON
     assert nemesis.state == STATE_OFF
+
+
+async def test_friend_binary_sensor_off_when_friend_fetch_errors(
+    hass: HomeAssistant,
+) -> None:
+    """A friend whose API call fails surfaces as OFF (no crash)."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={CONF_USERNAME: "biggs"},
+        options={CONF_POLL_INTERVAL: 60, CONF_FRIENDS: ["bad_friend"]},
+        unique_id="biggs",
+    )
+    entry.add_to_hass(hass)
+
+    online_user = load("user_online.json")["user"]
+
+    with patch("custom_components.fightcade.FightcadeClient") as ClientCls:
+        c = AsyncMock()
+
+        async def get_user(name: str):
+            if name == "biggs":
+                return online_user
+            raise FightcadeApiError("friend down")
+
+        c.async_get_user.side_effect = get_user
+        c.async_get_user_replays.return_value = []
+        c.async_get_events.return_value = []
+        ClientCls.return_value = c
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    bad = hass.states.get("binary_sensor.fightcade_friend_bad_friend_online")
+    assert bad is not None
+    assert bad.state == STATE_OFF

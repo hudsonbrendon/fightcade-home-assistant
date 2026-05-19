@@ -75,3 +75,91 @@ def test_build_replay_url() -> None:
 def test_epoch_ms_to_iso_returns_utc_isoformat() -> None:
     assert epoch_ms_to_iso(0) == "1970-01-01T00:00:00+00:00"
     assert epoch_ms_to_iso(1716100000000).startswith("2024-")
+
+
+def test_extract_favorite_gameids_limit_truncates_above_count() -> None:
+    user = load("user_online.json")["user"]
+    favs = extract_favorite_gameids(user, limit=10)
+    assert len(favs) == 3  # only 3 games in fixture  # noqa: PLR2004
+
+
+def test_extract_favorite_gameids_treats_missing_time_played_as_zero() -> None:
+    user = {"gameinfo": {"a": {}, "b": {"time_played": 10}}}
+    favs = extract_favorite_gameids(user, limit=2)
+    assert favs[0] == "b"
+
+
+def test_extract_favorite_gameids_empty_dict_gameinfo() -> None:
+    assert extract_favorite_gameids({"gameinfo": {}}, limit=3) == []
+
+
+def test_extract_last_match_handles_no_players() -> None:
+    replay = {
+        "quarkid": "x",
+        "gameid": "g",
+        "emulator": "fbneo",
+        "date": 0,
+        "players": [],
+    }
+    match = extract_last_match("biggs", [replay])
+    assert match is not None
+    assert match["opponent"] is None
+    assert match["won"] is None
+
+
+def test_extract_last_match_username_missing_from_players() -> None:
+    """If the configured user isn't in the replay, we still pick an opponent."""
+    replay = {
+        "quarkid": "x",
+        "gameid": "g",
+        "emulator": "fbneo",
+        "date": 0,
+        "players": [
+            {"name": "alice", "score": 1},
+            {"name": "bob", "score": 2},
+        ],
+    }
+    match = extract_last_match("biggs", [replay])
+    assert match is not None
+    # neither matches → 'you' is None, opponent is first non-match (alice)
+    assert match["opponent"] == "alice"
+    assert match["won"] is None  # no 'you' score
+
+
+def test_extract_last_match_one_score_missing_returns_won_none() -> None:
+    replay = {
+        "quarkid": "x",
+        "gameid": "g",
+        "emulator": "fbneo",
+        "date": 0,
+        "players": [
+            {"name": "biggs", "score": 3},
+            {"name": "rival"},
+        ],
+    }
+    match = extract_last_match("biggs", [replay])
+    assert match is not None
+    assert match["won"] is None
+    assert match["you_score"] == 3  # noqa: PLR2004
+    assert match["opponent_score"] is None
+
+
+def test_extract_last_match_loss_when_opp_score_higher() -> None:
+    replay = {
+        "quarkid": "x",
+        "gameid": "g",
+        "emulator": "fbneo",
+        "date": 0,
+        "players": [
+            {"name": "biggs", "score": 1},
+            {"name": "rival", "score": 4},
+        ],
+    }
+    match = extract_last_match("biggs", [replay])
+    assert match is not None
+    assert match["won"] is False
+
+
+def test_is_online_false_when_last_online_is_zero() -> None:
+    """last_online=0 is still a logout timestamp; user is offline."""
+    assert is_online({"last_online": 0}) is False

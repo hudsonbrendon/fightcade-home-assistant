@@ -31,7 +31,15 @@ from .const import (
 
 
 def _parse_friends_csv(raw: str) -> list[str]:
-    return [u.strip() for u in raw.split(",") if u.strip()]
+    seen: set[str] = set()
+    out: list[str] = []
+    for token in raw.split(","):
+        name = token.strip()
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        out.append(name)
+    return out
 
 
 class FightcadeConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -43,18 +51,23 @@ class FightcadeConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         if user_input is not None:
             username = user_input[CONF_USERNAME].strip()
-            await self.async_set_unique_id(username.lower())
-            self._abort_if_unique_id_configured()
-
-            client = FightcadeClient(async_get_clientsession(self.hass))
-            try:
-                await client.async_get_user(username)
-            except FightcadeUserNotFound:
-                errors["base"] = "user_not_found"
-            except FightcadeApiError:
-                errors["base"] = "cannot_connect"
+            if not username:
+                errors["base"] = "invalid_username"
             else:
-                return self.async_create_entry(title=username, data={CONF_USERNAME: username})
+                await self.async_set_unique_id(username.lower())
+                self._abort_if_unique_id_configured()
+
+                client = FightcadeClient(async_get_clientsession(self.hass))
+                try:
+                    await client.async_get_user(username)
+                except FightcadeUserNotFound:
+                    errors["base"] = "user_not_found"
+                except FightcadeApiError:
+                    errors["base"] = "cannot_connect"
+                except Exception:
+                    errors["base"] = "unknown"
+                else:
+                    return self.async_create_entry(title=username, data={CONF_USERNAME: username})
 
         schema = vol.Schema({vol.Required(CONF_USERNAME): str})
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)

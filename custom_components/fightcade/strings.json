@@ -9,7 +9,9 @@
     },
     "error": {
       "user_not_found": "That Fightcade username does not exist.",
-      "cannot_connect": "Could not reach Fightcade. Try again."
+      "cannot_connect": "Could not reach Fightcade. Try again.",
+      "invalid_username": "Please enter a Fightcade username.",
+      "unknown": "Unexpected error. Check the Home Assistant log."
     },
     "abort": {
       "already_configured": "This Fightcade account is already configured."

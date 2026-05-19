@@ -11,6 +11,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.fightcade.api import FightcadeApiError, FightcadeUserNotFound
 from custom_components.fightcade.coordinator import (
     FightcadeData,
     FightcadeDataUpdateCoordinator,
@@ -191,3 +192,140 @@ async def test_end_to_end_new_event_fires_after_second_refresh(
         await hass.async_block_till_done()
 
     assert [ev.data["name"] for ev in fired] == ["Surprise"]
+
+
+async def test_refresh_marks_failure_when_user_not_found(
+    hass: HomeAssistant, fake_client: AsyncMock
+) -> None:
+    fake_client.async_get_user.side_effect = FightcadeUserNotFound("nope")
+    entry = MockConfigEntry(domain="fightcade", data={"username": "x"}, entry_id="z")
+    entry.add_to_hass(hass)
+    coord = FightcadeDataUpdateCoordinator(
+        hass,
+        client=fake_client,
+        username="x",
+        friends=[],
+        poll_interval=60,
+        entry_id="z",
+        config_entry=entry,
+    )
+    await coord.async_refresh()
+    assert coord.last_update_success is False
+
+
+async def test_refresh_marks_failure_on_api_error(
+    hass: HomeAssistant, fake_client: AsyncMock
+) -> None:
+    fake_client.async_get_user.side_effect = FightcadeApiError("boom")
+    entry = MockConfigEntry(domain="fightcade", data={"username": "x"}, entry_id="z")
+    entry.add_to_hass(hass)
+    coord = FightcadeDataUpdateCoordinator(
+        hass,
+        client=fake_client,
+        username="x",
+        friends=[],
+        poll_interval=60,
+        entry_id="z",
+        config_entry=entry,
+    )
+    await coord.async_refresh()
+    assert coord.last_update_success is False
+
+
+async def test_friend_fetch_failure_marks_error_not_online(
+    hass: HomeAssistant, fake_client: AsyncMock
+) -> None:
+    async def get_user(name: str):
+        if name == "biggs":
+            return load("user_online.json")["user"]
+        raise FightcadeApiError("friend boom")
+
+    fake_client.async_get_user.side_effect = get_user
+
+    entry = MockConfigEntry(domain="fightcade", data={"username": "biggs"}, entry_id="z")
+    entry.add_to_hass(hass)
+    coord = FightcadeDataUpdateCoordinator(
+        hass,
+        client=fake_client,
+        username="biggs",
+        friends=["bad_friend"],
+        poll_interval=60,
+        entry_id="z",
+        config_entry=entry,
+    )
+    await coord.async_refresh()
+    assert coord.data is not None
+    bad = coord.data.friends["bad_friend"]
+    assert bad["online"] is False
+    assert bad["user"] is None
+    assert "boom" in bad["error"]
+
+
+async def test_event_fetch_failure_logs_warning_keeps_other_games(
+    hass: HomeAssistant, fake_client: AsyncMock
+) -> None:
+    base_events = load("events_garou.json")["results"]["results"]
+
+    async def get_events(gameid: str):
+        if gameid == "umk3":
+            raise FightcadeApiError("event boom")
+        return base_events
+
+    fake_client.async_get_events.side_effect = get_events
+
+    entry = MockConfigEntry(domain="fightcade", data={"username": "biggs"}, entry_id="z")
+    entry.add_to_hass(hass)
+    coord = FightcadeDataUpdateCoordinator(
+        hass,
+        client=fake_client,
+        username="biggs",
+        friends=[],
+        poll_interval=60,
+        entry_id="z",
+        config_entry=entry,
+    )
+    await coord.async_refresh()
+    assert coord.data is not None
+    assert coord.data.events["umk3"] == []
+    # other favorite gameids in the fixture have a populated events list
+    other_games = [g for g in coord.data.events if g != "umk3"]
+    assert other_games  # at least one other favorite
+    assert all(coord.data.events[g] for g in other_games)
+
+
+async def test_no_friends_returns_empty_dict(hass: HomeAssistant, fake_client: AsyncMock) -> None:
+    entry = MockConfigEntry(domain="fightcade", data={"username": "biggs"}, entry_id="z")
+    entry.add_to_hass(hass)
+    coord = FightcadeDataUpdateCoordinator(
+        hass,
+        client=fake_client,
+        username="biggs",
+        friends=[],
+        poll_interval=60,
+        entry_id="z",
+        config_entry=entry,
+    )
+    await coord.async_refresh()
+    assert coord.data is not None
+    assert coord.data.friends == {}
+
+
+async def test_no_favorite_games_returns_empty_events(
+    hass: HomeAssistant, fake_client: AsyncMock
+) -> None:
+    fake_client.async_get_user.return_value = {"name": "x", "gameinfo": {}}
+    entry = MockConfigEntry(domain="fightcade", data={"username": "x"}, entry_id="z")
+    entry.add_to_hass(hass)
+    coord = FightcadeDataUpdateCoordinator(
+        hass,
+        client=fake_client,
+        username="x",
+        friends=[],
+        poll_interval=60,
+        entry_id="z",
+        config_entry=entry,
+    )
+    await coord.async_refresh()
+    assert coord.data is not None
+    assert coord.data.events == {}
+    fake_client.async_get_events.assert_not_awaited()

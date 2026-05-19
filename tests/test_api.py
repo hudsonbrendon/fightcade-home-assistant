@@ -10,6 +10,7 @@ import aiohttp
 import pytest
 from aiohttp import ClientSession
 from aioresponses import aioresponses
+from aioresponses.core import CallbackResult
 
 from custom_components.fightcade.api import (
     FightcadeApiError,
@@ -102,3 +103,112 @@ async def test_timeout_raises_api_error(session: ClientSession) -> None:
         m.post(API_URL, exception=TimeoutError())
         with pytest.raises(FightcadeApiError, match="timeout"):
             await FightcadeClient(session).async_get_user("biggs")
+
+
+async def test_invalid_json_body_raises_api_error(session: ClientSession) -> None:
+    """Malformed JSON body must not bubble as JSONDecodeError."""
+    with aioresponses() as m:
+        m.post(
+            API_URL,
+            status=200,
+            body="{ not: valid, json }",
+            headers={"Content-Type": "application/json"},
+        )
+        with pytest.raises(FightcadeApiError):
+            await FightcadeClient(session).async_get_user("biggs")
+
+
+async def test_non_dict_response_raises_api_error(session: ClientSession) -> None:
+    """List/string response body must raise FightcadeApiError, not AttributeError."""
+    with aioresponses() as m:
+        m.post(API_URL, payload=["not", "a", "dict"])
+        with pytest.raises(FightcadeApiError):
+            await FightcadeClient(session).async_get_user("biggs")
+
+
+async def test_get_user_accepts_lowercase_ok(session: ClientSession) -> None:
+    """API response with res='ok' (any case) must be treated as success."""
+    payload = {"res": "ok", "user": {"name": "biggs", "gameinfo": {}}}
+    with aioresponses() as m:
+        m.post(API_URL, payload=payload)
+        user = await FightcadeClient(session).async_get_user("biggs")
+    assert user["name"] == "biggs"
+
+
+async def test_get_user_missing_res_key_raises_api_error(session: ClientSession) -> None:
+    with aioresponses() as m:
+        m.post(API_URL, payload={"user": {"name": "biggs"}})
+        with pytest.raises(FightcadeApiError):
+            await FightcadeClient(session).async_get_user("biggs")
+
+
+async def test_get_user_ok_but_missing_user_raises_api_error(
+    session: ClientSession,
+) -> None:
+    with aioresponses() as m:
+        m.post(API_URL, payload={"res": "OK"})
+        with pytest.raises(FightcadeApiError, match="missing 'user'"):
+            await FightcadeClient(session).async_get_user("biggs")
+
+
+async def test_http_403_cloudflare_raises_api_error(session: ClientSession) -> None:
+    """Cloudflare-blocked 403 must surface as cannot_connect, never user_not_found."""
+    with aioresponses() as m:
+        m.post(API_URL, status=403, payload={"error": "Forbidden", "res": "error"})
+        with pytest.raises(FightcadeApiError) as excinfo:
+            await FightcadeClient(session).async_get_user("biggs")
+        assert "403" in str(excinfo.value)
+
+
+async def test_http_401_raises_api_error(session: ClientSession) -> None:
+    with aioresponses() as m:
+        m.post(API_URL, status=401)
+        with pytest.raises(FightcadeApiError):
+            await FightcadeClient(session).async_get_user("biggs")
+
+
+async def test_get_user_replays_missing_results_raises_api_error(
+    session: ClientSession,
+) -> None:
+    with aioresponses() as m:
+        m.post(API_URL, payload={"res": "OK"})
+        with pytest.raises(FightcadeApiError):
+            await FightcadeClient(session).async_get_user_replays("biggs")
+
+
+async def test_get_user_replays_empty_list(session: ClientSession) -> None:
+    with aioresponses() as m:
+        m.post(API_URL, payload={"res": "OK", "results": {"results": []}})
+        replays = await FightcadeClient(session).async_get_user_replays("biggs")
+    assert replays == []
+
+
+async def test_get_events_missing_results_raises_api_error(
+    session: ClientSession,
+) -> None:
+    with aioresponses() as m:
+        m.post(API_URL, payload={"res": "OK"})
+        with pytest.raises(FightcadeApiError):
+            await FightcadeClient(session).async_get_events("garou")
+
+
+async def test_get_events_empty_list(session: ClientSession) -> None:
+    with aioresponses() as m:
+        m.post(API_URL, payload={"res": "OK", "results": {"results": []}})
+        events = await FightcadeClient(session).async_get_events("garou")
+    assert events == []
+
+
+async def test_get_user_passes_exact_username_case(session: ClientSession) -> None:
+    """Fightcade usernames are case-sensitive — client must not lowercase them."""
+    payload = {"res": "OK", "user": {"name": "BiGgs", "gameinfo": {}}}
+    captured: dict[str, Any] = {}
+
+    def cb(_url, **kwargs):
+        captured.update(kwargs.get("json") or {})
+        return CallbackResult(payload=payload)
+
+    with aioresponses() as m:
+        m.post(API_URL, callback=cb)
+        await FightcadeClient(session).async_get_user("BiGgs")
+    assert captured["username"] == "BiGgs"
