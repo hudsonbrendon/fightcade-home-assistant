@@ -1,6 +1,6 @@
 [project]
 name = "fightcade-home-assistant"
-version = "0.2.0"
+version = "0.2.1"
 description = "Home Assistant custom integration for Fightcade"
 readme = "README.md"
 requires-python = ">=3.13"

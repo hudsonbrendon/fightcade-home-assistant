@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -197,6 +198,43 @@ async def test_get_events_empty_list(session: ClientSession) -> None:
         m.post(API_URL, payload={"res": "OK", "results": {"results": []}})
         events = await FightcadeClient(session).async_get_events("garou")
     assert events == []
+
+
+async def test_request_failure_logs_warning_with_status_and_body(
+    session: ClientSession, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Cloudflare 403 with a Forbidden body must produce a visible WARNING log."""
+    caplog.set_level(logging.WARNING, logger="custom_components.fightcade.api")
+    with aioresponses() as m:
+        m.post(API_URL, status=403, payload={"error": "Forbidden", "res": "error"})
+        with pytest.raises(FightcadeApiError):
+            await FightcadeClient(session).async_get_user("biggs")
+    msgs = [r.getMessage() for r in caplog.records]
+    assert any("403" in m for m in msgs)
+    assert any("Forbidden" in m for m in msgs)
+
+
+async def test_request_timeout_logs_warning(
+    session: ClientSession, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.WARNING, logger="custom_components.fightcade.api")
+    with aioresponses() as m:
+        m.post(API_URL, exception=TimeoutError())
+        with pytest.raises(FightcadeApiError):
+            await FightcadeClient(session).async_get_user("biggs")
+    assert any("timeout" in r.getMessage().lower() for r in caplog.records)
+
+
+async def test_request_non_ok_res_logs_warning(
+    session: ClientSession, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.WARNING, logger="custom_components.fightcade.api")
+    with aioresponses() as m:
+        m.post(API_URL, payload={"res": "error", "detail": "blocked"})
+        with pytest.raises(FightcadeApiError):
+            await FightcadeClient(session).async_get_user("biggs")
+    msgs = [r.getMessage() for r in caplog.records]
+    assert any("'error'" in m for m in msgs)
 
 
 async def test_get_user_passes_exact_username_case(session: ClientSession) -> None:

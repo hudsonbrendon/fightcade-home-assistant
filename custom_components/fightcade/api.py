@@ -29,6 +29,7 @@ class FightcadeClient:
         self._session = session
 
     async def _request(self, body: dict[str, Any]) -> dict[str, Any]:
+        req = body.get("req")
         try:
             async with self._session.post(
                 API_URL,
@@ -36,28 +37,41 @@ class FightcadeClient:
                 headers={"Content-Type": "application/json"},
                 timeout=aiohttp.ClientTimeout(total=10),
             ) as resp:
-                if resp.status >= HTTPStatus.INTERNAL_SERVER_ERROR:
-                    raise FightcadeApiError(f"server error: {resp.status}")
-                if resp.status == HTTPStatus.TOO_MANY_REQUESTS:
-                    raise FightcadeApiError("rate limited")
                 if resp.status >= HTTPStatus.BAD_REQUEST:
+                    snippet = (await resp.text())[:200]
+                    _LOGGER.warning(
+                        "Fightcade API HTTP %s for req=%r body=%r",
+                        resp.status,
+                        req,
+                        snippet,
+                    )
+                    if resp.status >= HTTPStatus.INTERNAL_SERVER_ERROR:
+                        raise FightcadeApiError(f"server error: {resp.status}")
+                    if resp.status == HTTPStatus.TOO_MANY_REQUESTS:
+                        raise FightcadeApiError("rate limited")
                     raise FightcadeApiError(f"http {resp.status}")
                 try:
                     data = await resp.json(content_type=None)
                 except json.JSONDecodeError as err:
+                    raw = (await resp.text())[:200]
+                    _LOGGER.warning(
+                        "Fightcade API non-JSON body for req=%r: %s; body=%r", req, err, raw
+                    )
                     raise FightcadeApiError(f"invalid json: {err}") from err
         except aiohttp.ClientError as err:
-            _LOGGER.debug("Fightcade API client error for req=%r: %s", body.get("req"), err)
+            _LOGGER.warning("Fightcade API client error for req=%r: %s", req, err)
             raise FightcadeApiError(str(err)) from err
         except TimeoutError as err:
-            _LOGGER.debug("Fightcade API timeout for req=%r", body.get("req"))
+            _LOGGER.warning("Fightcade API timeout for req=%r", req)
             raise FightcadeApiError("timeout") from err
 
         if not isinstance(data, dict):
+            _LOGGER.warning("Fightcade API unexpected payload type %s for req=%r", type(data), req)
             raise FightcadeApiError(f"unexpected response type: {type(data).__name__}")
 
         res = data.get("res")
         if not isinstance(res, str) or res.upper() != "OK":
+            _LOGGER.warning("Fightcade API res=%r for req=%r payload=%r", res, req, data)
             raise FightcadeApiError(f"api res: {res!r}")
         return data
 
